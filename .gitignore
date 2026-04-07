@@ -1,0 +1,49 @@
+# Model artifacts
+models/
+*.pt
+*.pth
+*.onnx
+*.engine
+
+# Generated/runtime data (not source code)
+data/
+outputs/
+videos/
+license-plate-reader/data/
+license-plate-reader/.data/
+
+# Credentials / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+*credentials*.json
+*secret*.json
+*secrets*.json
+service-account*.json
+
+# Python cache / environments
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.venv/
+venv/
+ocr_env/
+**/ocr_env/
+
+# Editor / local settings
+.vscode/
+.idea/
+
+# OS noise
+.DS_Store
+Thumbs.db

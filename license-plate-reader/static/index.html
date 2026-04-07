@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>License Plate Reader — AI OCR</title>
+  <meta name="description" content="Detect license plates, crop and preprocess images, and extract number plate text using AI-powered OCR." />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* ═══ Reset & Base ═══ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #0b0d14;
+      --bg-card: #12151f;
+      --bg-card-hover: #181c2a;
+      --bg-input: #1a1e2e;
+      --border: #252a3a;
+      --border-hover: #3a4060;
+      --text-primary: #e8eaf0;
+      --text-secondary: #8890a8;
+      --text-muted: #5a6280;
+      --accent-1: #38bdf8;   /* Cyan */
+      --accent-2: #818cf8;   /* Indigo */
+      --accent-3: #a78bfa;   /* Violet */
+      --success: #34d399;
+      --warning: #fbbf24;
+      --danger: #f87171;
+      --glow-accent: rgba(56, 189, 248, 0.15);
+      --glow-success: rgba(52, 211, 153, 0.2);
+      --radius: 14px;
+      --radius-sm: 10px;
+      --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 28px;
+      line-height: 1.55;
+    }
+
+    /* ═══ Header ═══ */
+    .header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+    .header h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, var(--accent-1), var(--accent-2), var(--accent-3));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.02em;
+    }
+    .header p {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-top: 6px;
+    }
+
+    /* ═══ Cards ═══ */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 20px;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .card:hover {
+      border-color: var(--border-hover);
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15);
+    }
+    .card-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-title .icon {
+      font-size: 1rem;
+    }
+
+    /* ═══ Upload Area ═══ */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color var(--transition), background var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--accent-1);
+      background: var(--glow-accent);
+    }
+    .upload-zone .upload-icon {
+      font-size: 2.8rem;
+      margin-bottom: 12px;
+      display: block;
+      opacity: 0.7;
+    }
+    .upload-zone .upload-text {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+    }
+    .upload-zone .upload-text strong {
+      color: var(--accent-1);
+    }
+    .upload-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+    .upload-preview {
+      display: none;
+      margin-top: 16px;
+      position: relative;
+    }
+    .upload-preview img {
+      max-width: 100%;
+      max-height: 360px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      display: block;
+      margin: 0 auto;
+    }
+    .upload-preview .file-info {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .upload-preview .btn-clear {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(0,0,0,0.6);
+      border: none;
+      color: var(--danger);
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background var(--transition);
+    }
+    .upload-preview .btn-clear:hover {
+      background: rgba(248, 113, 113, 0.2);
+    }
+
+    /* ═══ Settings Row ═══ */
+    .settings-row {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+    .field-group {
+      flex: 1;
+      min-width: 180px;
+    }
+    .field-group label {
+      display: block;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .field-group input[type="text"],
+    .field-group input[type="number"] {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      font-family: 'Inter', sans-serif;
+      outline: none;
+      transition: border-color var(--transition);
+    }
+    .field-group input:focus {
+      border-color: var(--accent-1);
+    }
+
+    /* ═══ Buttons ═══ */
+    .btn {
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 12px 28px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      font-family: 'Inter', sans-serif;
+      cursor: pointer;
+      transition: transform 0.12s, opacity var(--transition), box-shadow var(--transition);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn:hover { opacity: 0.92; }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+      color: white;
+      box-shadow: 0 4px 20px rgba(56, 189, 248, 0.25);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 6px 28px rgba(56, 189, 248, 0.35);
+    }
+    .btn-primary:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    /* ═══ Status Bar ═══ */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      background: var(--bg-input);
+      border-radius: var(--radius-sm);
+      margin-bottom: 20px;
+      font-size: 0.85rem;
+      border: 1px solid var(--border);
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      flex-shrink: 0;
+      transition: background var(--transition);
+    }
+    .status-dot.idle { background: var(--text-muted); }
+    .status-dot.processing {
+      background: var(--warning);
+      animation: pulse-dot 1.2s ease-in-out infinite;
+    }
+    .status-dot.success { background: var(--success); }
+    .status-dot.error { background: var(--danger); }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.5); }
+      50% { opacity: 0.6; box-shadow: 0 0 12px 4px rgba(251, 191, 36, 0.3); }
+    }
+    .status-text { color: var(--text-secondary); }
+
+    /* ═══ Results Section ═══ */
+    .results-section {
+      display: none;
+    }
+    .results-section.visible {
+      display: block;
+      animation: slideUp 0.5s ease-out;
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ═══ Results Grid ═══ */
+    .results-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 900px) {
+      .results-grid { grid-template-columns: 1fr; }
+    }
+    .results-grid img {
+      width: 100%;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+
+    /* ═══ Plate Card ═══ */
+    .plate-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .plate-card:hover {
+      border-color: var(--accent-1);
+      box-shadow: 0 0 20px var(--glow-accent);
+    }
+    .plate-card .plate-number {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--success);
+      letter-spacing: 0.08em;
+      text-align: center;
+      padding: 16px 0;
+      background: linear-gradient(135deg, rgba(52,211,153,0.08), rgba(129,140,248,0.05));
+      border-radius: var(--radius-sm);
+      margin-bottom: 16px;
+      border: 1px solid rgba(52, 211, 153, 0.15);
+      text-shadow: 0 0 30px rgba(52, 211, 153, 0.3);
+      font-family: 'Inter', monospace;
+    }
+    .plate-card .plate-number.empty {
+      color: var(--danger);
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    .plate-meta {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .plate-meta .meta-item {
+      background: var(--bg-input);
+      border-radius: 8px;
+      padding: 10px 14px;
+      text-align: center;
+    }
+    .plate-meta .meta-value {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--accent-1);
+    }
+    .plate-meta .meta-label {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 2px;
+    }
+    .plate-images {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .plate-images figure {
+      margin: 0;
+    }
+    .plate-images img {
+      width: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      display: block;
+    }
+    .plate-images figcaption {
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      margin-top: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* ═══ Spinner ═══ */
+    .spinner {
+      display: none;
+      width: 44px;
+      height: 44px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent-1);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 20px auto;
+    }
+    .spinner.visible { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ═══ Footer ═══ */
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <h1>🔍 License Plate Reader</h1>
+    <p>Upload a photo → detect plates → extract number text with AI-powered OCR</p>
+  </div>
+
+  <!-- Upload Card -->
+  <div class="card" id="uploadCard">
+    <div class="card-title"><span class="icon">📷</span> Upload Image</div>
+
+    <div class="upload-zone" id="uploadZone">
+      <span class="upload-icon">🖼️</span>
+      <div class="upload-text">
+        <strong>Click to upload</strong> or drag & drop<br>
+        PNG, JPG, JPEG — max 20 MB
+      </div>
+      <input type="file" id="imageInput" accept="image/png,image/jpeg,image/jpg,image/webp" />
+    </div>
+
+    <div class="upload-preview" id="uploadPreview">
+      <button class="btn-clear" id="btnClear" title="Remove image">✕</button>
+      <img id="previewImg" alt="Uploaded preview" />
+      <div class="file-info" id="fileInfo"></div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="card">
+    <div class="card-title"><span class="icon">⚙️</span> Settings</div>
+    <div class="settings-row">
+      <div class="field-group">
+        <label for="modelPath">Model Path</label>
+        <input type="text" id="modelPath" value="models/license_best.pt" />
+      </div>
+      <div class="field-group" style="max-width: 140px;">
+        <label for="confThresh">Confidence</label>
+        <input type="number" id="confThresh" value="0.25" min="0.05" max="1" step="0.05" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Run Button -->
+  <div style="text-align: center; margin-bottom: 20px;">
+    <button class="btn btn-primary" id="btnDetect" disabled>
+      <span>🚀</span> Detect & Read Plate
+    </button>
+  </div>
+
+  <!-- Status & Spinner -->
+  <div class="status-bar" id="statusBar">
+    <div class="status-dot idle" id="statusDot"></div>
+    <span class="status-text" id="statusText">Idle — upload an image to get started</span>
+  </div>
+  <div class="spinner" id="spinner"></div>
+
+  <!-- Results -->
+  <div class="results-section" id="resultsSection">
+
+    <!-- Annotated vs Original -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🖼️</span> Detection Result</div>
+      <div class="results-grid">
+        <div>
+          <img id="resultOriginal" alt="Original image" />
+          <div style="text-align:center; font-size:0.72rem; color:var(--text-muted); margin-top:6px; text-transform:uppercase; letter-spacing:0.04em;">Original</div>
+        </div>
+        <div>
+          <img id="resultAnnotated" alt="Annotated image with detected plates" />
+          <div style="text-align:center; font-size:0.72rem; color:var(--text-muted); margin-top:6px; text-transform:uppercase; letter-spacing:0.04em;">Annotated</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Plates Detail -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🏷️</span> Detected Plates (<span id="plateCount">0</span>)</div>
+      <div id="platesContainer"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    License Plate Reader — powered by YOLO + PaddleOCR
+  </div>
+
+  <script>
+    // ─── DOM References ───
+    const uploadZone    = document.getElementById("uploadZone");
+    const imageInput    = document.getElementById("imageInput");
+    const uploadPreview = document.getElementById("uploadPreview");
+    const previewImg    = document.getElementById("previewImg");
+    const fileInfo      = document.getElementById("fileInfo");
+    const btnClear      = document.getElementById("btnClear");
+    const btnDetect     = document.getElementById("btnDetect");
+    const statusDot     = document.getElementById("statusDot");
+    const statusText    = document.getElementById("statusText");
+    const spinner       = document.getElementById("spinner");
+    const resultsSection= document.getElementById("resultsSection");
+
+    let selectedFile = null;
+
+    // ─── Upload Zone interaction ───
+    uploadZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      uploadZone.classList.add("drag-over");
+    });
+    uploadZone.addEventListener("dragleave", () => {
+      uploadZone.classList.remove("drag-over");
+    });
+    uploadZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      uploadZone.classList.remove("drag-over");
+      if (e.dataTransfer.files.length) {
+        handleFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    imageInput.addEventListener("change", () => {
+      if (imageInput.files.length) {
+        handleFile(imageInput.files[0]);
+      }
+    });
+
+    function handleFile(file) {
+      const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+      if (!validTypes.includes(file.type)) {
+        setStatus("error", "Invalid file type. Use PNG, JPG, or WebP.");
+        return;
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        setStatus("error", "File too large. Max 20 MB.");
+        return;
+      }
+
+      selectedFile = file;
+
+      // Preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        previewImg.src = e.target.result;
+        uploadZone.style.display = "none";
+        uploadPreview.style.display = "block";
+        fileInfo.textContent = `${file.name} — ${(file.size / 1024).toFixed(1)} KB`;
+      };
+      reader.readAsDataURL(file);
+
+      btnDetect.disabled = false;
+      resultsSection.classList.remove("visible");
+      setStatus("idle", "Image loaded — click Detect & Read Plate");
+    }
+
+    btnClear.addEventListener("click", () => {
+      selectedFile = null;
+      imageInput.value = "";
+      uploadZone.style.display = "";
+      uploadPreview.style.display = "none";
+      btnDetect.disabled = true;
+      resultsSection.classList.remove("visible");
+      setStatus("idle", "Idle — upload an image to get started");
+    });
+
+    // ─── Status helper ───
+    function setStatus(state, msg) {
+      statusDot.className = "status-dot " + state;
+      statusText.textContent = msg;
+    }
+
+    // ─── Run detection ───
+    btnDetect.addEventListener("click", async () => {
+      if (!selectedFile) return;
+
+      btnDetect.disabled = true;
+      setStatus("processing", "Detecting plates & running OCR…");
+      spinner.classList.add("visible");
+      resultsSection.classList.remove("visible");
+
+      const fd = new FormData();
+      fd.append("image", selectedFile);
+      fd.append("model_path", document.getElementById("modelPath").value);
+      fd.append("conf", document.getElementById("confThresh").value);
+
+      try {
+        const res = await fetch("/api/detect", { method: "POST", body: fd });
+        spinner.classList.remove("visible");
+
+        if (!res.ok) {
+          const err = await res.json();
+          setStatus("error", err.detail || "Detection failed");
+          btnDetect.disabled = false;
+          return;
+        }
+
+        const data = await res.json();
+        showResults(data);
+        setStatus("success", `✅ Done — ${data.total_plates} plate(s) detected`);
+      } catch (e) {
+        spinner.classList.remove("visible");
+        setStatus("error", "Network error: " + e.message);
+      }
+
+      btnDetect.disabled = false;
+    });
+
+    // ─── Render results ───
+    function showResults(data) {
+      // Images
+      document.getElementById("resultOriginal").src = data.original_url + "?t=" + Date.now();
+      document.getElementById("resultAnnotated").src = data.annotated_url + "?t=" + Date.now();
+      document.getElementById("plateCount").textContent = data.total_plates;
+
+      // Individual plates
+      const container = document.getElementById("platesContainer");
+      container.innerHTML = "";
+
+      data.plates.forEach((plate, i) => {
+        const div = document.createElement("div");
+        div.className = "plate-card";
+        div.innerHTML = `
+          <div class="plate-number ${plate.plate_text ? '' : 'empty'}">
+            ${plate.plate_text || "Could not extract text"}
+          </div>
+          <div class="plate-meta">
+            <div class="meta-item">
+              <div class="meta-value">${(plate.detection_confidence * 100).toFixed(1)}%</div>
+              <div class="meta-label">Detection Conf.</div>
+            </div>
+            <div class="meta-item">
+              <div class="meta-value">${plate.ocr_confidence ? (plate.ocr_confidence * 100).toFixed(1) + '%' : '—'}</div>
+              <div class="meta-label">OCR Conf.</div>
+            </div>
+            <div class="meta-item" style="grid-column: span 2;">
+              <div class="meta-value" style="font-size:0.8rem; word-break:break-all;">${plate.raw_ocr_text || '—'}</div>
+              <div class="meta-label">Raw OCR Text</div>
+            </div>
+          </div>
+          <div class="plate-images">
+            <figure>
+              <img src="${plate.crop_url}?t=${Date.now()}" alt="Cropped plate ${i+1}" />
+              <figcaption>Cropped Plate</figcaption>
+            </figure>
+            <figure>
+              <img src="${plate.processed_url}?t=${Date.now()}" alt="Processed plate ${i+1}" />
+              <figcaption>Preprocessed (Thresh)</figcaption>
+            </figure>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+
+      resultsSection.classList.add("visible");
+    }
+  </script>
+</body>
+</html>

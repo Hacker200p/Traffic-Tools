@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Traffic Density Comparator</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 16px; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; }
+    canvas { border: 1px solid #999; cursor: crosshair; }
+    .light { width: 22px; height: 22px; border-radius: 50%; display: inline-block; background: gray; border: 1px solid #222; margin-right: 8px; vertical-align: middle; }
+    input[type="text"] { width: 360px; }
+    button { margin-top: 8px; }
+    #status { margin-top: 8px; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <h2>Traffic Density Comparator</h2>
+
+  <div class="card">
+    <div>
+      <label>Video 1: <input type="file" id="video1" accept="video/*"></label>
+      <label style="margin-left:12px;">Video 2: <input type="file" id="video2" accept="video/*"></label>
+      <button id="btnUpload">Upload</button>
+    </div>
+    <div style="margin-top:8px;">
+      <label>Model path:
+        <input type="text" id="modelPath" value="models/best.pt">
+      </label>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:12px;">
+    <div class="card">
+      <h4>Video 1 ROI</h4>
+      <canvas id="c1" width="520" height="300"></canvas><br>
+      <button onclick="undo(1)">Undo</button>
+      <span id="count1"></span>
+    </div>
+
+    <div class="card">
+      <h4>Video 2 ROI</h4>
+      <canvas id="c2" width="520" height="300"></canvas><br>
+      <button onclick="undo(2)">Undo</button>
+      <span id="count2"></span>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px;">
+    <button id="btnRun">Run Compare</button>
+    <div id="status">Idle</div>
+  </div>
+
+  <div class="card" style="margin-top:12px;">
+    <h3>Signals</h3>
+    <div>
+      <span id="l1" class="light"></span> Video 1
+      <span style="display:inline-block; width:24px;"></span>
+      <span id="l2" class="light"></span> Video 2
+    </div>
+    <div id="meta" style="margin-top:8px;"></div>
+  </div>
+
+  <script>
+    let jobId = null;
+    let roi1 = [], roi2 = [];
+    let timeline = [];
+
+    const c1 = document.getElementById("c1"), ctx1 = c1.getContext("2d");
+    const c2 = document.getElementById("c2"), ctx2 = c2.getContext("2d");
+    const img1 = new Image(), img2 = new Image();
+    const s1 = { sx: 1, sy: 1 }, s2 = { sx: 1, sy: 1 };
+
+    function draw(ctx, canvas, img, pts, scale) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (img.src) ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      if (!pts.length) return;
+      ctx.strokeStyle = "cyan";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+
+      pts.forEach((p, i) => {
+        const x = p[0] / scale.sx;
+        const y = p[1] / scale.sy;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        ctx.fillStyle = "lime";
+        ctx.fillRect(x - 2, y - 2, 4, 4);
+      });
+
+      if (pts.length >= 3) ctx.closePath();
+      ctx.stroke();
+    }
+
+    function redrawAll() {
+      draw(ctx1, c1, img1, roi1, s1);
+      draw(ctx2, c2, img2, roi2, s2);
+      document.getElementById("count1").innerText = `Points: ${roi1.length}`;
+      document.getElementById("count2").innerText = `Points: ${roi2.length}`;
+    }
+
+    function attachClick(canvas, pts, scale) {
+      canvas.addEventListener("click", (e) => {
+        if (!jobId) return;
+        const r = canvas.getBoundingClientRect();
+        const x = e.clientX - r.left;
+        const y = e.clientY - r.top;
+        pts.push([Math.round(x * scale.sx), Math.round(y * scale.sy)]);
+        redrawAll();
+      });
+    }
+
+    function undo(which) {
+      if (which === 1 && roi1.length) roi1.pop();
+      if (which === 2 && roi2.length) roi2.pop();
+      redrawAll();
+    }
+
+    attachClick(c1, roi1, s1);
+    attachClick(c2, roi2, s2);
+
+    document.getElementById("btnUpload").onclick = async () => {
+      const v1 = document.getElementById("video1").files[0];
+      const v2 = document.getElementById("video2").files[0];
+      if (!v1 || !v2) return alert("Select both videos.");
+
+      const fd = new FormData();
+      fd.append("video1", v1);
+      fd.append("video2", v2);
+
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) return alert(data.detail || "Upload failed");
+
+      jobId = data.job_id;
+      roi1 = [];
+      roi2 = [];
+
+      img1.onload = () => {
+        s1.sx = data.frame1_size[0] / c1.width;
+        s1.sy = data.frame1_size[1] / c1.height;
+        redrawAll();
+      };
+      img2.onload = () => {
+        s2.sx = data.frame2_size[0] / c2.width;
+        s2.sy = data.frame2_size[1] / c2.height;
+        redrawAll();
+      };
+
+      img1.src = data.frame1_url + "?t=" + Date.now();
+      img2.src = data.frame2_url + "?t=" + Date.now();
+
+      document.getElementById("status").innerText = "Uploaded. Draw ROI on both frames.";
+    };
+
+    document.getElementById("btnRun").onclick = async () => {
+      if (!jobId) return alert("Upload videos first.");
+      if (roi1.length < 3 || roi2.length < 3) return alert("Draw ROI on both videos.");
+
+      const payload = {
+        roi1: roi1,
+        roi2: roi2,
+        model_path: document.getElementById("modelPath").value,
+        segment_m: 120,
+        lanes1: 1,
+        lanes2: 1,
+        conf: 0.15,
+        imgsz: 640,
+        smooth: 30
+      };
+
+      const res = await fetch(`/api/run/${jobId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) return alert(data.detail || "Run failed");
+
+      document.getElementById("status").innerText = "Running...";
+      pollStatus();
+    };
+
+    async function pollStatus() {
+      const timer = setInterval(async () => {
+        const res = await fetch(`/api/status/${jobId}`);
+        const s = await res.json();
+
+        document.getElementById("status").innerText =
+          `Status: ${s.status}` + (s.message ? ` | ${s.message}` : "");
+
+        if (s.status === "done") {
+          clearInterval(timer);
+          const rr = await fetch(`/api/result/${jobId}`);
+          const result = await rr.json();
+          timeline = result.timeline || [];
+          playSignals();
+        }
+        if (s.status === "error") {
+          clearInterval(timer);
+        }
+      }, 2000);
+    }
+
+    function playSignals() {
+      if (!timeline.length) return;
+
+      const l1 = document.getElementById("l1");
+      const l2 = document.getElementById("l2");
+      const meta = document.getElementById("meta");
+
+      let i = 0;
+      const timer = setInterval(() => {
+        if (i >= timeline.length) {
+          clearInterval(timer);
+          return;
+        }
+
+        const r = timeline[i++];
+        l1.style.background = r.signal_1 === "RED" ? "red" : "green";
+        l2.style.background = r.signal_2 === "RED" ? "red" : "green";
+        meta.innerText = `t=${Number(r.time_sec).toFixed(2)}s | d1=${Number(r.density_1).toFixed(2)} | d2=${Number(r.density_2).toFixed(2)}`;
+      }, 200);
+    }
+  </script>
+</body>
+</html>

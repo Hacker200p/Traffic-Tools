@@ -1,0 +1,13 @@
+character_list: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+lang_list:
+  - 'en'
+imgH: 64
+imgW: 800
+network_params:
+  input_channel: 1
+  output_channel: 256
+  hidden_size: 256
+Transformation: TPS
+FeatureExtraction: ResNet
+SequenceModeling: BiLSTM
+Prediction: Attn

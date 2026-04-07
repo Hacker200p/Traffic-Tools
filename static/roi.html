@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Define ROI</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 16px; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; }
+    canvas { border: 1px solid #999; cursor: crosshair; }
+    #roiOut { width: 100%; margin-top: 12px; }
+    button { margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <h2>ROI Definition Tool</h2>
+  <div class="card">
+    <input type="file" id="frameInput" accept="image/*">
+    <canvas id="roiCanvas" width="520" height="300"></canvas><br>
+    <button id="undoBtn">Undo</button>
+    <button id="clearBtn">Clear</button>
+    <button id="copyBtn">Copy ROI</button>
+    <div id="status"></div>
+    <textarea id="roiOut" rows="3" readonly></textarea>
+  </div>
+  <script>
+    const canvas = document.getElementById('roiCanvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    let roi = [];
+    let scale = { sx: 1, sy: 1 };
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (img.src) ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      if (!roi.length) return;
+      ctx.strokeStyle = 'cyan';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      roi.forEach((p, i) => {
+        const [x, y] = p;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        ctx.fillStyle = '#ff0';
+        ctx.beginPath();
+        ctx.arc(x, y, 6, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      });
+      if (roi.length >= 3) ctx.closePath();
+      ctx.stroke();
+    }
+
+    canvas.addEventListener('pointerdown', e => {
+      const r = canvas.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      roi.push([Math.round(x), Math.round(y)]);
+      draw();
+      updateOut();
+    });
+
+    document.getElementById('undoBtn').onclick = () => {
+      roi.pop();
+      draw();
+      updateOut();
+    };
+    document.getElementById('clearBtn').onclick = () => {
+      roi = [];
+      draw();
+      updateOut();
+    };
+    document.getElementById('copyBtn').onclick = () => {
+      const txt = document.getElementById('roiOut');
+      txt.select();
+      document.execCommand('copy');
+      document.getElementById('status').innerText = 'Copied!';
+    };
+
+    function updateOut() {
+      document.getElementById('roiOut').value = JSON.stringify(roi);
+    }
+
+    document.getElementById('frameInput').onchange = e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        draw();
+      };
+      img.src = url;
+    };
+  </script>
+</body>
+</html>
