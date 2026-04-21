@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Traffic Tools Launcher</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --ink: #1f1d1a;
+      --muted: #605a52;
+      --card: #fffbf4;
+      --stroke: #d9d1c4;
+      --a1: #005f73;
+      --a2: #ca6702;
+      --a3: #9b2226;
+      --ok: #0f766e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Space Grotesk', sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1000px 520px at -10% -20%, rgba(0,95,115,0.18), transparent 60%),
+        radial-gradient(860px 420px at 110% 120%, rgba(202,103,2,0.18), transparent 60%),
+        linear-gradient(140deg, #f4f1ea 0%, #ece6da 100%);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .shell {
+      width: min(920px, 100%);
+      background: var(--card);
+      border: 1px solid var(--stroke);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 18px 44px rgba(31, 29, 26, 0.14);
+      animation: rise 0.5s ease-out;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .top {
+      padding: 30px 30px 18px;
+      border-bottom: 1px solid var(--stroke);
+      background: linear-gradient(90deg, rgba(0,95,115,0.08), rgba(202,103,2,0.08));
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.4rem, 2vw, 2rem);
+      letter-spacing: 0.01em;
+    }
+
+    .sub {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .tools {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      padding: 22px;
+    }
+
+    .card {
+      border: 1px solid var(--stroke);
+      border-radius: 16px;
+      padding: 20px;
+      background: #fffdfa;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: transform 0.15s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(31, 29, 26, 0.1);
+      border-color: #c4b8a5;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .desc {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.45;
+      min-height: 64px;
+    }
+
+    .btn {
+      margin-top: auto;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      border-radius: 12px;
+      padding: 11px 14px;
+      border: 1px solid transparent;
+      color: #fff;
+    }
+
+    .btn-traffic { background: linear-gradient(120deg, var(--a1), #0a9396); }
+    .btn-plate { background: linear-gradient(120deg, var(--a2), var(--a3)); }
+
+    .hint {
+      padding: 0 22px 22px;
+      color: var(--ok);
+      font-size: 0.9rem;
+    }
+
+    @media (max-width: 820px) {
+      .tools { grid-template-columns: 1fr; }
+      .desc { min-height: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="top">
+      <h1>Traffic Tools Launcher</h1>
+      <p class="sub">Choose which tool you want to test. Both run from this single server.</p>
+    </section>
+
+    <section class="tools">
+      <article class="card">
+        <h2 class="title">Traffic Density Comparator</h2>
+        <p class="desc">Upload two traffic videos, draw ROI for both streams, and compare signal decisions using density over time.</p>
+        <a class="btn btn-traffic" href="/traffic">Open Traffic Tool</a>
+      </article>
+
+      <article class="card">
+        <h2 class="title">License Plate Reader</h2>
+        <p class="desc">Upload an image, detect number plates, and extract text with OCR and post-processing validation.</p>
+        <a class="btn btn-plate" href="/license">Open Plate Tool</a>
+      </article>
+    </section>
+
+    <p class="hint">Tip: Open both tools in separate browser tabs to test side by side.</p>
+  </main>
+</body>
+</html>

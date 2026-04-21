@@ -16,7 +16,7 @@ import cv2
 import numpy as np
 import easyocr
 from PIL import Image, ImageDraw, ImageFont
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from ultralytics import YOLO
@@ -700,7 +700,7 @@ def _clean_plate_text(raw_text, confidence):
 
 @app.get("/")
 def root():
-    return RedirectResponse(url="/static/index.html")
+    return RedirectResponse(url="static/index.html")
 
 
 @app.get("/health")
@@ -710,6 +710,7 @@ def health():
 
 @app.post("/api/detect")
 async def detect_plate(
+    request: Request,
     image: UploadFile = File(...),
     model_path: str = Form("models/license_best.pt"),
     conf: float = Form(0.25),
@@ -744,6 +745,7 @@ async def detect_plate(
 
         reader = _get_ocr_reader()
         plates = []
+        root_path = request.scope.get("root_path", "")
 
         for idx, box in enumerate(results.boxes):
             x1, y1, x2, y2 = map(int, box.xyxy[0].tolist())
@@ -793,8 +795,8 @@ async def detect_plate(
                 "district_valid": bool(district_valid),
                 "raw_ocr_text": raw_text,
                 "plate_text": plate_text,
-                "crop_url": f"/data/{job_id}/plate_{idx}_crop.jpg",
-                "processed_url": f"/data/{job_id}/plate_{idx}_processed.jpg",
+                "crop_url": f"{root_path}/data/{job_id}/plate_{idx}_crop.jpg",
+                "processed_url": f"{root_path}/data/{job_id}/plate_{idx}_processed.jpg",
             })
 
         # Build annotated image with PIL (sharp TTF labels, green boxes)
@@ -809,8 +811,8 @@ async def detect_plate(
             "job_id": job_id,
             "total_plates": len(plates),
             "plates": plates,
-            "annotated_url": f"/data/{job_id}/annotated.jpg",
-            "original_url": f"/data/{job_id}/original.jpg",
+            "annotated_url": f"{root_path}/data/{job_id}/annotated.jpg",
+            "original_url": f"{root_path}/data/{job_id}/original.jpg",
         })
     except Exception as e:
         traceback.print_exc()

@@ -1,6 +1,7 @@
 import uuid
 import threading
 import concurrent.futures
+import importlib.util
 from pathlib import Path
 from collections import deque
 
@@ -24,6 +25,27 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 app = FastAPI(title="Traffic Density Comparator")
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.mount("/data", StaticFiles(directory=str(DATA_DIR)), name="data")
+
+
+def _load_license_plate_app():
+    lpr_app_file = BASE_DIR / "license-plate-reader" / "app.py"
+    if not lpr_app_file.exists():
+        raise RuntimeError(f"License plate app not found: {lpr_app_file}")
+
+    spec = importlib.util.spec_from_file_location("license_plate_reader_app", str(lpr_app_file))
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Could not load license plate app module")
+
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    lpr_app = getattr(module, "app", None)
+    if lpr_app is None:
+        raise RuntimeError("License plate app module has no FastAPI 'app' object")
+    return lpr_app
+
+
+app.mount("/lpr", _load_license_plate_app())
 
 JOBS = {}  # job_id -> {"status","message","result"}
 
@@ -245,7 +267,17 @@ def _worker(job_id: str, req: RunRequest):
 
 @app.get("/")
 def root():
+    return RedirectResponse(url="/static/home.html")
+
+
+@app.get("/traffic")
+def traffic_home():
     return RedirectResponse(url="/static/index.html")
+
+
+@app.get("/license")
+def license_home():
+    return RedirectResponse(url="/lpr/static/index.html")
 
 
 @app.get("/health")

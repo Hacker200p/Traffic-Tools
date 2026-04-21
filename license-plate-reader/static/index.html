@@ -564,6 +564,10 @@
       statusText.textContent = msg;
     }
 
+    function getAppBasePath() {
+      return window.location.pathname.replace(/\/static\/.*$/, "");
+    }
+
     // ─── Run detection ───
     btnDetect.addEventListener("click", async () => {
       if (!selectedFile) return;
@@ -579,7 +583,7 @@
       fd.append("conf", document.getElementById("confThresh").value);
 
       try {
-        const res = await fetch("/api/detect", { method: "POST", body: fd });
+        const res = await fetch(`${getAppBasePath()}/api/detect`, { method: "POST", body: fd });
         spinner.classList.remove("visible");
 
         if (!res.ok) {

@@ -6,3 +6,5 @@ numpy
 pandas
 ultralytics
 deep-sort-realtime
+easyocr
+Pillow
